@@ -61,6 +61,15 @@
       .error-title { color: #b91c1c; }
       .noscript { max-width: 390px; padding: 20px; background: white; border-radius: 12px; }
       iframe { display: none; width: 0; height: 0; border: 0; }
+      .botfalt {
+        position: absolute !important;
+        left: -10000px !important;
+        width: 1px !important;
+        height: 1px !important;
+        overflow: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
       @media (max-width: 380px) {
         body { padding-left: 12px; padding-right: 12px; }
         .card { padding: 26px 19px 20px; }
@@ -75,6 +84,7 @@
     <script>
       const BACKEND_URL = "https://script.google.com/macros/s/AKfycbyI9qKIlHsMaqwRK79YI-Mdk3uYaPvi-qi_MpqLXRRl1RaJm8_PwXVL9WNI4zDb0mQ2RA/exec";
       const PROFIL_NYCKEL = "hillsong_norra_volontar_profil_v1";
+      let formularStarttid = Date.now();
 
       function hamtaProfil() {
         try {
@@ -119,8 +129,13 @@
           '<p>Tack för att du är med i team idag. Skriv ditt för- och efternamn och din e-postadress eller ditt mobilnummer för att registrera mobilen. Nästa gång räcker det att du bara blippar mobilen så checkas du in automatiskt.</p>' +
           '<input id="namn" type="text" placeholder="Förnamn Efternamn" autocomplete="name" autocapitalize="words">' +
           '<input id="kontakt" type="text" placeholder="E-postadress eller mobilnummer" autocomplete="email" autocapitalize="none">' +
+          '<div class="botfalt" aria-hidden="true">' +
+          '<label for="webbplats">Lämna detta fält tomt</label>' +
+          '<input id="webbplats" type="text" tabindex="-1" autocomplete="off">' +
+          '</div>' +
           '<button id="knapp" type="button">Checka in</button>' +
           '<img class="logo" src="hillsong-sweden-logo.png" alt="Hillsong Sweden">';
+        formularStarttid = Date.now();
         document.getElementById("knapp").addEventListener("click", registrera);
       }
 
@@ -136,6 +151,7 @@
       function registrera() {
         const namn = document.getElementById("namn").value.trim();
         const kontakt = document.getElementById("kontakt").value.trim();
+        const webbplats = document.getElementById("webbplats").value.trim();
         if (!namn) { alert("Vänligen fyll i ditt namn."); return; }
         if (!kontakt) { alert("Vänligen fyll i e-postadress eller mobilnummer."); return; }
         if (!navigator.onLine) { alert("Ingen internetanslutning. Försök igen när mobilen är online."); return; }
@@ -153,7 +169,14 @@
           return;
         }
 
-        skickaIbakgrunden({ atgard: "registrera", namn: namn, kontakt: kontakt, enhetsId: profil.enhetsId });
+        skickaIbakgrunden({
+          atgard: "registrera",
+          namn: namn,
+          kontakt: kontakt,
+          enhetsId: profil.enhetsId,
+          webbplats: webbplats,
+          starttid: String(formularStarttid)
+        });
         visaLyckad(namn);
       }
 
