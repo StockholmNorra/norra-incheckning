@@ -43,6 +43,24 @@
         font-size: 16px;
       }
       input:focus { border-color: #2563eb; outline: 3px solid #dbeafe; }
+      .gdpr {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        margin: 5px 0 15px;
+        color: #4b5563;
+        font-size: 13px;
+        line-height: 1.4;
+        text-align: left;
+      }
+      .gdpr input { flex: 0 0 auto; width: 19px; min-height: 19px; margin: 1px 0 0; }
+      .integritet {
+        margin: -3px 0 16px;
+        color: #6b7280;
+        font-size: 12px;
+        line-height: 1.45;
+        text-align: left;
+      }
       button {
         width: 100%;
         min-height: 52px;
@@ -129,6 +147,8 @@
           '<p>Tack för att du är med i team idag. Skriv ditt för- och efternamn och din e-postadress eller ditt mobilnummer för att registrera mobilen. Nästa gång räcker det att du bara blippar mobilen så checkas du in automatiskt.</p>' +
           '<input id="namn" type="text" placeholder="Förnamn Efternamn" autocomplete="name" autocapitalize="words">' +
           '<input id="kontakt" type="text" placeholder="E-postadress eller mobilnummer" autocomplete="email" autocapitalize="none">' +
+          '<p class="integritet"><strong>Så används uppgifterna:</strong> Namn och kontaktuppgift används för närvaroregistrering i iTeam. Uppgifterna behandlas i Hillsongs Google Kalkylark och Planning Center. Mobilen sparar ett anonymt enhets-ID för automatisk incheckning nästa gång. Läs Hillsongs information om personuppgifter eller kontakta Hillsong Sweden vid frågor.</p>' +
+          '<label class="gdpr"><input id="gdprBekraftad" type="checkbox"> <span>Jag har läst och förstått informationen om hur mina uppgifter används.</span></label>' +
           '<div class="botfalt" aria-hidden="true">' +
           '<label for="webbplats">Lämna detta fält tomt</label>' +
           '<input id="webbplats" type="text" tabindex="-1" autocomplete="off">' +
@@ -151,9 +171,11 @@
       function registrera() {
         const namn = document.getElementById("namn").value.trim();
         const kontakt = document.getElementById("kontakt").value.trim();
+        const gdprBekraftad = document.getElementById("gdprBekraftad").checked;
         const webbplats = document.getElementById("webbplats").value.trim();
         if (!namn) { alert("Vänligen fyll i ditt namn."); return; }
         if (!kontakt) { alert("Vänligen fyll i e-postadress eller mobilnummer."); return; }
+        if (!gdprBekraftad) { alert("Bocka först i rutan om hur uppgifterna används."); return; }
         if (!navigator.onLine) { alert("Ingen internetanslutning. Försök igen när mobilen är online."); return; }
 
         const knapp = document.getElementById("knapp");
@@ -174,6 +196,7 @@
           namn: namn,
           kontakt: kontakt,
           enhetsId: profil.enhetsId,
+          gdprBekraftad: "1",
           webbplats: webbplats,
           starttid: String(formularStarttid)
         });
