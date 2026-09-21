@@ -218,3 +218,187 @@
     </script>
   </body>
 </html>
+        padding: 13px 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+        background: white;
+        color: #111827;
+        font: inherit;
+        font-size: 16px;
+      }
+      input:focus { border-color: #2563eb; outline: 3px solid #dbeafe; }
+      .gdpr {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        margin: 5px 0 15px;
+        color: #4b5563;
+        font-size: 13px;
+        line-height: 1.4;
+        text-align: left;
+      }
+      .gdpr input { flex: 0 0 auto; width: 19px; min-height: 19px; margin: 1px 0 0; }
+      .integritet {
+        margin: -3px 0 16px;
+        color: #6b7280;
+        font-size: 12px;
+        line-height: 1.45;
+        text-align: left;
+      }
+      button {
+        width: 100%;
+        min-height: 52px;
+        border: 0;
+        border-radius: 10px;
+        background: #2563eb;
+        color: white;
+        font: inherit;
+        font-weight: 700;
+      }
+      button:disabled { opacity: .65; }
+      .logo { display: block; width: 78%; max-width: 255px; height: auto; margin: 28px auto 0; }
+      .welcome-name { margin-bottom: 13px; color: #374151; font-size: 19px; }
+      .success-title { margin: 0; color: #16a34a; font-size: 31px; }
+      .success-card { padding-top: 34px; padding-bottom: 34px; }
+      .error-title { color: #b91c1c; }
+      .noscript { max-width: 390px; padding: 20px; background: white; border-radius: 12px; }
+      iframe { display: none; width: 0; height: 0; border: 0; }
+      .botfalt {
+        position: absolute !important;
+        left: -10000px !important;
+        width: 1px !important;
+        height: 1px !important;
+        overflow: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+      @media (max-width: 380px) {
+        body { padding-left: 12px; padding-right: 12px; }
+        .card { padding: 26px 19px 20px; }
+        h1 { font-size: 25px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card" id="app" aria-live="polite"><h1>Laddar…</h1></main>
+    <iframe name="bakgrundsmottagare" title=""></iframe>
+    <noscript><div class="noscript">JavaScript måste vara aktiverat för att checka in.</div></noscript>
+    <script>
+      const BACKEND_URL = "https://script.google.com/macros/s/AKfycbyI9qKIlHsMaqwRK79YI-Mdk3uYaPvi-qi_MpqLXRRl1RaJm8_PwXVL9WNI4zDb0mQ2RA/exec";
+      const PROFIL_NYCKEL = "hillsong_norra_volontar_profil_v1";
+      let formularStarttid = Date.now();
+
+      function hamtaProfil() {
+        try {
+          const profil = JSON.parse(localStorage.getItem(PROFIL_NYCKEL) || "null");
+          return profil && profil.namn && profil.enhetsId ? profil : null;
+        } catch (fel) { return null; }
+      }
+
+      function skapaEnhetsId() {
+        return window.crypto && window.crypto.randomUUID
+          ? window.crypto.randomUUID()
+          : "enhet-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+      }
+
+      function sparaProfil(profil) {
+        localStorage.setItem(PROFIL_NYCKEL, JSON.stringify(profil));
+      }
+
+      function skickaIbakgrunden(falt) {
+        const formular = document.createElement("form");
+        formular.method = "POST";
+        formular.action = BACKEND_URL;
+        formular.target = "bakgrundsmottagare";
+        formular.style.display = "none";
+
+        Object.keys(falt).forEach(function(nyckel) {
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = nyckel;
+          input.value = falt[nyckel];
+          formular.appendChild(input);
+        });
+
+        document.body.appendChild(formular);
+        formular.submit();
+        setTimeout(function() { formular.remove(); }, 5000);
+      }
+
+      function visaFormular() {
+        document.getElementById("app").innerHTML =
+          '<h1>Välkommen till Norra!</h1>' +
+          '<p>Tack för att du är med i team idag. Skriv ditt för- och efternamn och din e-postadress eller ditt mobilnummer för att registrera mobilen. Nästa gång räcker det att du bara blippar mobilen så checkas du in automatiskt.</p>' +
+          '<input id="namn" type="text" placeholder="Förnamn Efternamn" autocomplete="name" autocapitalize="words">' +
+          '<input id="kontakt" type="text" placeholder="E-postadress eller mobilnummer" autocomplete="email" autocapitalize="none">' +
+          '<p class="integritet"><strong>Så används uppgifterna:</strong> Namn och kontaktuppgift används för närvaroregistrering i iTeam. Uppgifterna behandlas i Hillsongs Google Kalkylark och Planning Center. Mobilen sparar ett anonymt enhets-ID för automatisk incheckning nästa gång. Läs Hillsongs information om personuppgifter eller kontakta Hillsong Sweden vid frågor.</p>' +
+          '<label class="gdpr"><input id="gdprBekraftad" type="checkbox"> <span>Jag har läst och förstått informationen om hur mina uppgifter används.</span></label>' +
+          '<div class="botfalt" aria-hidden="true">' +
+          '<label for="webbplats">Lämna detta fält tomt</label>' +
+          '<input id="webbplats" type="text" tabindex="-1" autocomplete="off">' +
+          '</div>' +
+          '<button id="knapp" type="button">Checka in</button>' +
+          '<img class="logo" src="hillsong-sweden-logo.png" alt="Hillsong Sweden">';
+        formularStarttid = Date.now();
+        document.getElementById("knapp").addEventListener("click", registrera);
+      }
+
+      function visaLyckad(namn) {
+        const app = document.getElementById("app");
+        app.className = "card success-card";
+        app.innerHTML =
+          '<p class="welcome-name">Välkommen, <strong id="visatNamn"></strong>!</p>' +
+          '<h1 class="success-title">Incheckad! ✅</h1>';
+        document.getElementById("visatNamn").textContent = namn;
+      }
+
+      function registrera() {
+        const namn = document.getElementById("namn").value.trim();
+        const kontakt = document.getElementById("kontakt").value.trim();
+        const gdprBekraftad = document.getElementById("gdprBekraftad").checked;
+        const webbplats = document.getElementById("webbplats").value.trim();
+        if (!namn) { alert("Vänligen fyll i ditt namn."); return; }
+        if (!kontakt) { alert("Vänligen fyll i e-postadress eller mobilnummer."); return; }
+        if (!gdprBekraftad) { alert("Bocka först i rutan om hur uppgifterna används."); return; }
+        if (!navigator.onLine) { alert("Ingen internetanslutning. Försök igen när mobilen är online."); return; }
+
+        const knapp = document.getElementById("knapp");
+        knapp.disabled = true;
+        knapp.textContent = "Registrerar…";
+        const profil = { namn: namn, enhetsId: skapaEnhetsId() };
+
+        try { sparaProfil(profil); }
+        catch (fel) {
+          knapp.disabled = false;
+          knapp.textContent = "Checka in";
+          alert("Safari kunde inte spara mobilen. Kontrollera att privat surfning är avstängd.");
+          return;
+        }
+
+        skickaIbakgrunden({
+          atgard: "registrera",
+          namn: namn,
+          kontakt: kontakt,
+          enhetsId: profil.enhetsId,
+          gdprBekraftad: "1",
+          webbplats: webbplats,
+          starttid: String(formularStarttid)
+        });
+        visaLyckad(namn);
+      }
+
+      window.addEventListener("load", function() {
+        const parametrar = new URLSearchParams(window.location.search);
+        if (parametrar.get("reset") === "1") {
+          localStorage.removeItem(PROFIL_NYCKEL);
+          history.replaceState({}, "", window.location.pathname);
+        }
+        const profil = hamtaProfil();
+        if (!profil) { visaFormular(); return; }
+        if (!navigator.onLine) { visaFormular(); return; }
+        visaLyckad(profil.namn);
+        skickaIbakgrunden({ atgard: "checka_in", namn: profil.namn, enhetsId: profil.enhetsId });
+      });
+    </script>
+  </body>
+</html>
