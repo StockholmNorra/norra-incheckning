@@ -175,6 +175,36 @@
           '<p class="welcome-name">Välkommen, <strong id="visatNamn"></strong>!</p>' +
           '<h1 class="success-title">Incheckad! ✅</h1>';
         document.getElementById("visatNamn").textContent = namn;
+        signalIncheckning();
+      }
+
+      function signalIncheckning() {
+        try {
+          if (navigator.vibrate) navigator.vibrate([180, 90, 180]);
+        } catch (fel) {}
+
+        // Försök spela en kort tydlig tvåtonssignal. Safari kan blockera
+        // ljud som startas automatiskt, men bekräftelserutan visas alltid.
+        try {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContext) return;
+          const ljud = new AudioContext();
+          const start = ljud.currentTime;
+          [880, 1175].forEach(function(frekvens, index) {
+            const oscillator = ljud.createOscillator();
+            const volym = ljud.createGain();
+            oscillator.type = "sine";
+            oscillator.frequency.value = frekvens;
+            volym.gain.setValueAtTime(0.0001, start + index * 0.16);
+            volym.gain.exponentialRampToValueAtTime(0.22, start + index * 0.16 + 0.015);
+            volym.gain.exponentialRampToValueAtTime(0.0001, start + index * 0.16 + 0.13);
+            oscillator.connect(volym);
+            volym.connect(ljud.destination);
+            oscillator.start(start + index * 0.16);
+            oscillator.stop(start + index * 0.16 + 0.14);
+          });
+          setTimeout(function() { ljud.close(); }, 600);
+        } catch (fel) {}
       }
 
       function registrera() {
