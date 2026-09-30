@@ -121,6 +121,15 @@
         localStorage.setItem(PROFIL_NYCKEL, JSON.stringify(profil));
       }
 
+      function dagensDatum() {
+        return new Date().toLocaleDateString("sv-SE");
+      }
+
+      function markeraIncheckadIdag(profil) {
+        profil.senastIncheckadDatum = dagensDatum();
+        sparaProfil(profil);
+      }
+
       function skickaIbakgrunden(falt) {
         const formular = document.createElement("form");
         formular.method = "POST";
@@ -200,6 +209,7 @@
           webbplats: webbplats,
           starttid: String(formularStarttid)
         });
+        markeraIncheckadIdag(profil);
         visaLyckad(namn);
       }
 
@@ -212,8 +222,13 @@
         const profil = hamtaProfil();
         if (!profil) { visaFormular(); return; }
         if (!navigator.onLine) { visaFormular(); return; }
+        if (profil.senastIncheckadDatum === dagensDatum()) {
+          const nyttTillfalle = confirm("Du är redan incheckad idag. Är detta ett nytt möte eller tillfälle?\n\nTryck OK för att checka in igen eller Avbryt för att inte registrera en ny incheckning.");
+          if (!nyttTillfalle) { visaLyckad(profil.namn); return; }
+        }
         visaLyckad(profil.namn);
         skickaIbakgrunden({ atgard: "checka_in", namn: profil.namn, enhetsId: profil.enhetsId });
+        markeraIncheckadIdag(profil);
       });
     </script>
   </body>
