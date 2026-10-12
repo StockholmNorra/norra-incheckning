@@ -100,6 +100,7 @@
     <iframe name="bakgrundsmottagare" title=""></iframe>
     <noscript><div class="noscript">JavaScript måste vara aktiverat för att checka in.</div></noscript>
     <script>
+      const NFC_TOKEN = "c072aa889ec3c89be5b5facc96d617ad";
       const BACKEND_URL = "https://script.google.com/macros/s/AKfycbyI9qKIlHsMaqwRK79YI-Mdk3uYaPvi-qi_MpqLXRRl1RaJm8_PwXVL9WNI4zDb0mQ2RA/exec";
       const PROFIL_NYCKEL = "hillsong_norra_volontar_profil_v1";
       let formularStarttid = Date.now();
@@ -235,6 +236,7 @@
           namn: namn,
           kontakt: kontakt,
           enhetsId: profil.enhetsId,
+          nfcToken: NFC_TOKEN,
           gdprBekraftad: "1",
           webbplats: webbplats,
           starttid: String(formularStarttid)
@@ -249,15 +251,21 @@
           localStorage.removeItem(PROFIL_NYCKEL);
           history.replaceState({}, "", window.location.pathname);
         }
+        if (parametrar.get("nfc") !== NFC_TOKEN) {
+          document.getElementById("app").innerHTML = '<h1>Blippa NFC-taggen</h1><p>Incheckning kan endast startas via NFC-taggen vid entrén.</p>';
+          return;
+        }
         const profil = hamtaProfil();
         if (!profil) { visaFormular(); return; }
         if (!navigator.onLine) { visaFormular(); return; }
+        let nyttTillfalle = "0";
         if (profil.senastIncheckadDatum === dagensDatum()) {
-          const nyttTillfalle = confirm("Du är redan incheckad idag. Är detta ett nytt möte eller tillfälle?\n\nTryck OK för att checka in igen eller Avbryt för att inte registrera en ny incheckning.");
-          if (!nyttTillfalle) { visaLyckad(profil.namn); return; }
+          const godkantNyttTillfalle = confirm("Du är redan incheckad idag. Är detta ett nytt möte eller tillfälle?\n\nTryck OK för att checka in igen eller Avbryt för att inte registrera en ny incheckning.");
+          if (!godkantNyttTillfalle) { visaLyckad(profil.namn); return; }
+          nyttTillfalle = "1";
         }
         visaLyckad(profil.namn);
-        skickaIbakgrunden({ atgard: "checka_in", namn: profil.namn, enhetsId: profil.enhetsId });
+        skickaIbakgrunden({ atgard: "checka_in", namn: profil.namn, enhetsId: profil.enhetsId, nyttTillfalle: nyttTillfalle, nfcToken: NFC_TOKEN });
         markeraIncheckadIdag(profil);
       });
     </script>
