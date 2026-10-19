@@ -170,9 +170,22 @@
           '<input id="webbplats" type="text" tabindex="-1" autocomplete="off">' +
           '</div>' +
           '<button id="knapp" type="button">Checka in</button>' +
+          '<button id="migreraKnapp" type="button" class="secondary">Jag har redan registrerat mig</button>' +
           '<img class="logo" src="hillsong-sweden-logo.png" alt="Hillsong Sweden">';
         formularStarttid = Date.now();
         document.getElementById("knapp").addEventListener("click", registrera);
+        document.getElementById("migreraKnapp").addEventListener("click", migreraBefintligProfil);
+      }
+
+      function migreraBefintligProfil() {
+        const namn = prompt("Skriv exakt det namn som användes vid den tidigare registreringen:");
+        if (!namn || !namn.trim()) return;
+        const profil = { namn: namn.trim(), enhetsId: skapaEnhetsId() };
+        document.getElementById("app").innerHTML = '<h1>Återställer din registrering…</h1><p>Vänta ett ögonblick.</p>';
+        skickaIbakgrunden({ atgard: "migrera", namn: profil.namn, enhetsId: profil.enhetsId, nfcToken: NFC_TOKEN });
+        sparaProfil(profil);
+        markeraIncheckadIdag(profil);
+        setTimeout(function() { visaLyckad(profil.namn); }, 500);
       }
 
       function visaLyckad(namn) {
