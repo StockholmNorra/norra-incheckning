@@ -112,6 +112,12 @@
         } catch (fel) { return null; }
       }
 
+      function hamtaGammaltNamn() {
+        const match = document.cookie.match(/(?:^|; )volontar_namn=([^;]*)/);
+        if (!match) return "";
+        try { return decodeURIComponent(match[1]).trim(); } catch (fel) { return ""; }
+      }
+
       function skapaEnhetsId() {
         return window.crypto && window.crypto.randomUUID
           ? window.crypto.randomUUID()
@@ -256,7 +262,19 @@
           return;
         }
         const profil = hamtaProfil();
-        if (!profil) { visaFormular(); return; }
+        if (!profil) {
+          const gammaltNamn = hamtaGammaltNamn();
+          if (gammaltNamn) {
+            const nyttProfil = { namn: gammaltNamn, enhetsId: skapaEnhetsId() };
+            document.getElementById("app").innerHTML = '<h1>Återställer din registrering…</h1><p>Vänta ett ögonblick.</p>';
+            skickaIbakgrunden({ atgard: "migrera", namn: nyttProfil.namn, enhetsId: nyttProfil.enhetsId, nfcToken: NFC_TOKEN });
+            sparaProfil(nyttProfil);
+            markeraIncheckadIdag(nyttProfil);
+            setTimeout(function() { visaLyckad(nyttProfil.namn); }, 500);
+            return;
+          }
+          visaFormular(); return;
+        }
         if (!navigator.onLine) { visaFormular(); return; }
         let nyttTillfalle = "0";
         if (profil.senastIncheckadDatum === dagensDatum()) {
