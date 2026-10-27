@@ -1,1 +1,304 @@
+<!DOCTYPE html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#f3f4f6">
+    <title>Incheckning – Hillsong Stockholm City</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { min-height: 100%; margin: 0; }
+      body {
+        display: grid;
+        min-height: 100dvh;
+        place-items: center;
+        padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+        background: #f3f4f6;
+        color: #1f2937;
+        font-family: Arial, Helvetica, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .card {
+        width: 100%;
+        max-width: 390px;
+        padding: 31px 24px 23px;
+        overflow: hidden;
+        border-radius: 18px;
+        background: white;
+        box-shadow: 0 12px 35px rgba(0,0,0,.11);
+        text-align: center;
+      }
+      h1 { margin: 0 0 15px; color: #111827; font-size: 27px; line-height: 1.15; }
+      p { margin: 0 0 20px; color: #4b5563; font-size: 16px; line-height: 1.5; }
+      input {
+        width: 100%;
+        min-height: 52px;
+        margin: 0 0 12px;
+        padding: 13px 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+        background: white;
+        color: #111827;
+        font: inherit;
+        font-size: 16px;
+      }
+      input:focus { border-color: #2563eb; outline: 3px solid #dbeafe; }
+      .gdpr {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        margin: 5px 0 15px;
+        color: #4b5563;
+        font-size: 13px;
+        line-height: 1.4;
+        text-align: left;
+      }
+      .gdpr input { flex: 0 0 auto; width: 19px; min-height: 19px; margin: 1px 0 0; }
+      .integritet {
+        margin: -3px 0 16px;
+        color: #6b7280;
+        font-size: 12px;
+        line-height: 1.45;
+        text-align: left;
+      }
+      button {
+        width: 100%;
+        min-height: 52px;
+        border: 0;
+        border-radius: 10px;
+        background: #2563eb;
+        color: white;
+        font: inherit;
+        font-weight: 700;
+      }
+      button:disabled { opacity: .65; }
+      .logo { display: block; width: 78%; max-width: 255px; height: auto; margin: 28px auto 0; }
+      .welcome-name { margin-bottom: 13px; color: #374151; font-size: 19px; }
+      .success-title { margin: 0; color: #16a34a; font-size: 31px; }
+      .success-card { padding-top: 34px; padding-bottom: 34px; }
+      .error-title { color: #b91c1c; }
+      .noscript { max-width: 390px; padding: 20px; background: white; border-radius: 12px; }
+      iframe { display: none; width: 0; height: 0; border: 0; }
+      .botfalt {
+        position: absolute !important;
+        left: -10000px !important;
+        width: 1px !important;
+        height: 1px !important;
+        overflow: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+      @media (max-width: 380px) {
+        body { padding-left: 12px; padding-right: 12px; }
+        .card { padding: 26px 19px 20px; }
+        h1 { font-size: 25px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card" id="app" aria-live="polite"><h1>Laddar…</h1></main>
+    <iframe name="bakgrundsmottagare" title=""></iframe>
+    <noscript><div class="noscript">JavaScript måste vara aktiverat för att checka in.</div></noscript>
+    <script>
+      const NFC_TOKEN = "bb831ecad30b1146ca1a3d09d06685cc";
+      const BACKEND_URL = "https://script.google.com/macros/s/AKfycbyG9984tjeoOOVEq_LhfleJNpupoAGiJk4zsPac2jFMPxnyE4Kitt8_t6YT_N_3I-9n/exec";
+      const PROFIL_NYCKEL = "hillsong_city_volontar_profil_v1";
+      let formularStarttid = Date.now();
 
+      function hamtaProfil() {
+        try {
+          const profil = JSON.parse(localStorage.getItem(PROFIL_NYCKEL) || "null");
+          return profil && profil.namn && profil.enhetsId ? profil : null;
+        } catch (fel) { return null; }
+      }
+
+      function hamtaGammaltNamn() {
+        const match = document.cookie.match(/(?:^|; )volontar_namn=([^;]*)/);
+        if (!match) return "";
+        try { return decodeURIComponent(match[1]).trim(); } catch (fel) { return ""; }
+      }
+
+      function skapaEnhetsId() {
+        return window.crypto && window.crypto.randomUUID
+          ? window.crypto.randomUUID()
+          : "enhet-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+      }
+
+      function sparaProfil(profil) {
+        localStorage.setItem(PROFIL_NYCKEL, JSON.stringify(profil));
+      }
+
+      function dagensDatum() {
+        return new Date().toLocaleDateString("sv-SE");
+      }
+
+      function markeraIncheckadIdag(profil) {
+        profil.senastIncheckadDatum = dagensDatum();
+        sparaProfil(profil);
+      }
+
+      function skickaIbakgrunden(falt) {
+        const formular = document.createElement("form");
+        formular.method = "POST";
+        formular.action = BACKEND_URL;
+        formular.target = "bakgrundsmottagare";
+        formular.style.display = "none";
+
+        Object.keys(falt).forEach(function(nyckel) {
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = nyckel;
+          input.value = falt[nyckel];
+          formular.appendChild(input);
+        });
+
+        document.body.appendChild(formular);
+        formular.submit();
+        setTimeout(function() { formular.remove(); }, 5000);
+      }
+
+      function visaFormular() {
+        document.getElementById("app").innerHTML =
+          '<h1>Välkommen till City!</h1>' +
+          '<p>Tack för att du är med i team idag. Skriv ditt för- och efternamn och din e-postadress eller ditt mobilnummer för att registrera mobilen. Nästa gång räcker det att du bara blippar mobilen så checkas du in automatiskt.</p>' +
+          '<input id="namn" type="text" placeholder="Förnamn Efternamn" autocomplete="name" autocapitalize="words">' +
+          '<input id="kontakt" type="text" placeholder="E-postadress eller mobilnummer" autocomplete="email" autocapitalize="none">' +
+          '<details class="integritet"><summary>Så används uppgifterna</summary><p>Namn och kontaktuppgift används för närvaroregistrering i iTeam. Uppgifterna behandlas i Hillsongs Google Kalkylark och Planning Center. Mobilen sparar ett anonymt enhets-ID för automatisk incheckning nästa gång. Läs Hillsongs information om personuppgifter eller kontakta Hillsong Sweden vid frågor.</p></details>' +
+          '<label class="gdpr"><input id="gdprBekraftad" type="checkbox"> <span>Jag har läst och förstått informationen om hur mina uppgifter används.</span></label>' +
+          '<div class="botfalt" aria-hidden="true">' +
+          '<label for="webbplats">Lämna detta fält tomt</label>' +
+          '<input id="webbplats" type="text" tabindex="-1" autocomplete="off">' +
+          '</div>' +
+          '<button id="knapp" type="button">Checka in</button>' +
+          '<button id="migreraKnapp" type="button" class="secondary">Jag har redan registrerat mig tidigare</button>' +
+          '<img class="logo" src="hillsong-sweden-logo.png" alt="Hillsong Sweden">';
+        formularStarttid = Date.now();
+        document.getElementById("knapp").addEventListener("click", registrera);
+        document.getElementById("migreraKnapp").addEventListener("click", migreraBefintligProfil);
+      }
+
+      function migreraBefintligProfil() {
+        const namn = prompt("Skriv exakt det namn som användes vid den tidigare registreringen:");
+        if (!namn || !namn.trim()) return;
+        const profil = { namn: namn.trim(), enhetsId: skapaEnhetsId() };
+        document.getElementById("app").innerHTML = '<h1>Återställer din registrering…</h1><p>Vänta ett ögonblick.</p>';
+        skickaIbakgrunden({ atgard: "migrera", namn: profil.namn, enhetsId: profil.enhetsId, nfcToken: NFC_TOKEN });
+        sparaProfil(profil);
+        markeraIncheckadIdag(profil);
+        setTimeout(function() { visaLyckad(profil.namn); }, 500);
+      }
+
+      function visaLyckad(namn) {
+        const app = document.getElementById("app");
+        app.className = "card success-card";
+        app.innerHTML =
+          '<p class="welcome-name">Välkommen, <strong id="visatNamn"></strong>!</p>' +
+          '<h1 class="success-title">Incheckad! ✅</h1>';
+        document.getElementById("visatNamn").textContent = namn;
+        signalIncheckning();
+      }
+
+      function signalIncheckning() {
+        try {
+          if (navigator.vibrate) navigator.vibrate([180, 90, 180]);
+        } catch (fel) {}
+
+        // Försök spela en kort tydlig tvåtonssignal. Safari kan blockera
+        // ljud som startas automatiskt, men bekräftelserutan visas alltid.
+        try {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContext) return;
+          const ljud = new AudioContext();
+          const start = ljud.currentTime;
+          [880, 1175].forEach(function(frekvens, index) {
+            const oscillator = ljud.createOscillator();
+            const volym = ljud.createGain();
+            oscillator.type = "sine";
+            oscillator.frequency.value = frekvens;
+            volym.gain.setValueAtTime(0.0001, start + index * 0.16);
+            volym.gain.exponentialRampToValueAtTime(0.22, start + index * 0.16 + 0.015);
+            volym.gain.exponentialRampToValueAtTime(0.0001, start + index * 0.16 + 0.13);
+            oscillator.connect(volym);
+            volym.connect(ljud.destination);
+            oscillator.start(start + index * 0.16);
+            oscillator.stop(start + index * 0.16 + 0.14);
+          });
+          setTimeout(function() { ljud.close(); }, 600);
+        } catch (fel) {}
+      }
+
+      function registrera() {
+        const namn = document.getElementById("namn").value.trim();
+        const kontakt = document.getElementById("kontakt").value.trim();
+        const gdprBekraftad = document.getElementById("gdprBekraftad").checked;
+        const webbplats = document.getElementById("webbplats").value.trim();
+        if (!namn) { alert("Vänligen fyll i ditt namn."); return; }
+        if (!kontakt) { alert("Vänligen fyll i e-postadress eller mobilnummer."); return; }
+        if (!gdprBekraftad) { alert("Bocka först i rutan om hur uppgifterna används."); return; }
+        if (!navigator.onLine) { alert("Ingen internetanslutning. Försök igen när mobilen är online."); return; }
+
+        const knapp = document.getElementById("knapp");
+        knapp.disabled = true;
+        knapp.textContent = "Registrerar…";
+        const profil = { namn: namn, enhetsId: skapaEnhetsId() };
+
+        try { sparaProfil(profil); }
+        catch (fel) {
+          knapp.disabled = false;
+          knapp.textContent = "Checka in";
+          alert("Safari kunde inte spara mobilen. Kontrollera att privat surfning är avstängd.");
+          return;
+        }
+
+        skickaIbakgrunden({
+          atgard: "registrera",
+          namn: namn,
+          kontakt: kontakt,
+          enhetsId: profil.enhetsId,
+          nfcToken: NFC_TOKEN,
+          gdprBekraftad: "1",
+          webbplats: webbplats,
+          starttid: String(formularStarttid)
+        });
+        markeraIncheckadIdag(profil);
+        visaLyckad(namn);
+      }
+
+      window.addEventListener("load", function() {
+        const parametrar = new URLSearchParams(window.location.search);
+        if (parametrar.get("reset") === "1") {
+          localStorage.removeItem(PROFIL_NYCKEL);
+          history.replaceState({}, "", window.location.pathname);
+        }
+        if (parametrar.get("nfc") !== NFC_TOKEN) {
+          document.getElementById("app").innerHTML = '<h1>Blippa NFC-taggen</h1><p>Incheckning kan endast startas via NFC-taggen vid entrén.</p>';
+          return;
+        }
+        const profil = hamtaProfil();
+        if (!profil) {
+          const gammaltNamn = hamtaGammaltNamn();
+          if (gammaltNamn) {
+            const nyttProfil = { namn: gammaltNamn, enhetsId: skapaEnhetsId() };
+            document.getElementById("app").innerHTML = '<h1>Återställer din registrering…</h1><p>Vänta ett ögonblick.</p>';
+            skickaIbakgrunden({ atgard: "migrera", namn: nyttProfil.namn, enhetsId: nyttProfil.enhetsId, nfcToken: NFC_TOKEN });
+            sparaProfil(nyttProfil);
+            markeraIncheckadIdag(nyttProfil);
+            setTimeout(function() { visaLyckad(nyttProfil.namn); }, 500);
+            return;
+          }
+          visaFormular(); return;
+        }
+        if (!navigator.onLine) { visaFormular(); return; }
+        let nyttTillfalle = "0";
+        if (profil.senastIncheckadDatum === dagensDatum()) {
+          const godkantNyttTillfalle = confirm("Du är redan incheckad idag. Är detta ett nytt möte eller tillfälle?\n\nTryck OK för att checka in igen eller Avbryt för att inte registrera en ny incheckning.");
+          if (!godkantNyttTillfalle) { visaLyckad(profil.namn); return; }
+          nyttTillfalle = "1";
+        }
+        visaLyckad(profil.namn);
+        skickaIbakgrunden({ atgard: "checka_in", namn: profil.namn, enhetsId: profil.enhetsId, nyttTillfalle: nyttTillfalle, nfcToken: NFC_TOKEN });
+        markeraIncheckadIdag(profil);
+      });
+    </script>
+  </body>
+</html>
