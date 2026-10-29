@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#f3f4f6">
-    <title>Incheckning – Hillsong Stockholm City</title>
+    <title>Incheckning – Hillsong Norra</title>
     <style>
       * { box-sizing: border-box; }
       html, body { min-height: 100%; margin: 0; }
@@ -157,6 +157,38 @@
         setTimeout(function() { formular.remove(); }, 5000);
       }
 
+      let cityMoten = [];
+
+      function escCity(value) {
+        return String(value || "").replace(/[&<>\"']/g, function (c) { return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]; });
+      }
+
+      function hamtaCityMoten(done) {
+        const callback = "cityMoten_" + Date.now();
+        window[callback] = function (svar) { delete window[callback]; const s = document.getElementById(callback); if (s) s.remove(); done(svar || {konfigurerat:false,moten:[]}); };
+        const script = document.createElement("script"); script.id = callback;
+        script.src = BACKEND_URL + "?api=aktivaMoten&nfc=" + encodeURIComponent(NFC_TOKEN) + "&callback=" + callback;
+        script.onerror = function () { delete window[callback]; script.remove(); done({konfigurerat:false,moten:[]}); };
+        document.body.appendChild(script);
+      }
+
+      function visaCityMoten(continuation) {
+        document.getElementById("app").innerHTML = '<h1>Välj möte</h1><p>Markera det eller de möten du ingår i idag.</p><div id="cityMoteLista" style="display:grid;gap:9px;text-align:left;margin:0 0 18px"></div><button id="cityMoteKnapp" type="button">Fortsätt</button><img class="logo" src="hillsong-sweden-logo.png" alt="Hillsong Sweden">';
+        document.getElementById("cityMoteLista").innerHTML = cityMoten.map(function (mote) { return '<label style="display:flex;gap:10px;align-items:flex-start;padding:12px;border:1px solid #d1d5db;border-radius:10px;background:#fff"><input type="checkbox" class="city-mote-val" value="' + escCity(mote.id) + '" style="width:19px;min-height:19px;margin:1px 0 0" ' + (cityMoten.length === 1 ? "checked" : "") + '><span><strong>' + escCity(mote.namn) + '</strong><br><small style="color:#6b7280">Möte ' + escCity(mote.tid) + ' · öppet från ' + escCity(mote.oppnar) + '</small></span></label>'; }).join("");
+        document.getElementById("cityMoteKnapp").onclick = function () { const valda = Array.from(document.querySelectorAll(".city-mote-val:checked")).map(function (x) { return x.value; }); if (!valda.length) { alert("Välj minst ett möte."); return; } continuation(valda); };
+      }
+
+      function citySkicka(profil, falt, valda) { skickaIbakgrunden(Object.assign({}, falt, {moteIds:JSON.stringify(valda)})); markeraIncheckadIdag(profil); visaLyckad(profil.namn); }
+
+      function cityStartaIncheckning(profil) {
+        hamtaCityMoten(function (svar) {
+          cityMoten = svar.moten || [];
+          if (!svar.konfigurerat) { visaLyckad(profil.namn); skickaIbakgrunden({atgard:"checka_in",namn:profil.namn,enhetsId:profil.enhetsId,nfcToken:NFC_TOKEN}); markeraIncheckadIdag(profil); return; }
+          if (!cityMoten.length) { document.getElementById("app").innerHTML = '<h1>Incheckning stängd</h1><p>Det finns inget öppet möte just nu.</p>'; return; }
+          visaCityMoten(function (valda) { citySkicka(profil, {atgard:"checka_in",namn:profil.namn,enhetsId:profil.enhetsId,nfcToken:NFC_TOKEN}, valda); });
+        });
+      }
+
       function visaFormular() {
         document.getElementById("app").innerHTML =
           '<h1>Välkommen till City!</h1>' +
@@ -170,8 +202,8 @@
           '<input id="webbplats" type="text" tabindex="-1" autocomplete="off">' +
           '</div>' +
           '<button id="knapp" type="button">Checka in</button>' +
-          '<button id="migreraKnapp" type="button" class="secondary">Jag har redan registrerat mig tidigare</button>' +
-          '<img class="logo" src="../hillsong-sweden-logo.png" alt="Hillsong Sweden">';
+          '<button id="migreraKnapp" type="button" class="secondary">Jag har redan registrerat mig</button>' +
+          '<img class="logo" src="hillsong-sweden-logo.png" alt="Hillsong Sweden">';
         formularStarttid = Date.now();
         document.getElementById("knapp").addEventListener("click", registrera);
         document.getElementById("migreraKnapp").addEventListener("click", migreraBefintligProfil);
@@ -250,18 +282,13 @@
           return;
         }
 
-        skickaIbakgrunden({
-          atgard: "registrera",
-          namn: namn,
-          kontakt: kontakt,
-          enhetsId: profil.enhetsId,
-          nfcToken: NFC_TOKEN,
-          gdprBekraftad: "1",
-          webbplats: webbplats,
-          starttid: String(formularStarttid)
+        hamtaCityMoten(function (svar) {
+          cityMoten = svar.moten || [];
+          const falt = {atgard:"registrera",namn:namn,kontakt:kontakt,enhetsId:profil.enhetsId,nfcToken:NFC_TOKEN,gdprBekraftad:"1",webbplats:webbplats,starttid:String(formularStarttid)};
+          if (!svar.konfigurerat) { skickaIbakgrunden(falt); markeraIncheckadIdag(profil); visaLyckad(namn); return; }
+          if (!cityMoten.length) { knapp.disabled=false; knapp.textContent="Checka in"; document.getElementById("app").innerHTML='<h1>Incheckning stängd</h1><p>Det finns inget öppet möte just nu.</p>'; return; }
+          visaCityMoten(function (valda) { citySkicka(profil, falt, valda); });
         });
-        markeraIncheckadIdag(profil);
-        visaLyckad(namn);
       }
 
       window.addEventListener("load", function() {
@@ -289,15 +316,7 @@
           visaFormular(); return;
         }
         if (!navigator.onLine) { visaFormular(); return; }
-        let nyttTillfalle = "0";
-        if (profil.senastIncheckadDatum === dagensDatum()) {
-          const godkantNyttTillfalle = confirm("Du är redan incheckad idag. Är detta ett nytt möte eller tillfälle?\n\nTryck OK för att checka in igen eller Avbryt för att inte registrera en ny incheckning.");
-          if (!godkantNyttTillfalle) { visaLyckad(profil.namn); return; }
-          nyttTillfalle = "1";
-        }
-        visaLyckad(profil.namn);
-        skickaIbakgrunden({ atgard: "checka_in", namn: profil.namn, enhetsId: profil.enhetsId, nyttTillfalle: nyttTillfalle, nfcToken: NFC_TOKEN });
-        markeraIncheckadIdag(profil);
+        cityStartaIncheckning(profil);
       });
     </script>
   </body>
