@@ -156,6 +156,77 @@
         formular.submit();
         setTimeout(function() { formular.remove(); }, 5000);
       }
+      function skickaMedKvittens(falt, lyckad, misslyckad) {
+  const requestId =
+    window.crypto && window.crypto.randomUUID
+      ? window.crypto.randomUUID()
+      : "req-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+
+  const formul = document.createElement("form");
+  formul.method = "POST";
+  formul.action = BACKEND_URL;
+  formul.target = "bakgrundsmottagare";
+  formul.style.display = "none";
+
+  const data = Object.assign({}, falt, {
+    requestId: requestId
+  });
+
+  Object.keys(data).forEach(function (nyckel) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = nyckel;
+    input.value = String(data[nyckel]);
+    formul.appendChild(input);
+  });
+
+  document.body.appendChild(formul);
+  formul.submit();
+
+  const stoppTid = Date.now() + 15000;
+
+  function kontrolleraStatus() {
+    const callback = "checkinStatus_" + Date.now();
+
+    window[callback] = function (svar) {
+      delete window[callback];
+
+      const gammal = document.getElementById(callback);
+      if (gammal) gammal.remove();
+
+      if (svar.status === "ok") {
+        lyckad();
+      } else if (svar.status === "fel") {
+        misslyckad(svar.fel || "Incheckningen kunde inte sparas.");
+      } else if (Date.now() < stoppTid) {
+        setTimeout(kontrolleraStatus, 500);
+      } else {
+        misslyckad("Ingen bekräftelse kom från servern.");
+      }
+    };
+
+    const script = document.createElement("script");
+    script.id = callback;
+    script.src =
+      BACKEND_URL +
+      "?api=checkinStatus&requestId=" +
+      encodeURIComponent(requestId) +
+      "&callback=" +
+      callback +
+      "&_=" +
+      Date.now();
+
+    script.onerror = function () {
+      delete window[callback];
+      script.remove();
+      misslyckad("Kunde inte kontrollera incheckningen.");
+    };
+
+    document.body.appendChild(script);
+  }
+
+  setTimeout(kontrolleraStatus, 400);
+}
 
       function visaFormular() {
         document.getElementById("app").innerHTML =
@@ -242,27 +313,32 @@
         knapp.textContent = "Registrerar…";
         const profil = { namn: namn, enhetsId: skapaEnhetsId() };
 
-        try { sparaProfil(profil); }
-        catch (fel) {
-          knapp.disabled = false;
-          knapp.textContent = "Checka in";
-          alert("Safari kunde inte spara mobilen. Kontrollera att privat surfning är avstängd.");
-          return;
-        }
-
-        skickaIbakgrunden({
-          atgard: "registrera",
-          namn: namn,
-          kontakt: kontakt,
-          enhetsId: profil.enhetsId,
-          nfcToken: NFC_TOKEN,
-          gdprBekraftad: "1",
-          webbplats: webbplats,
-          starttid: String(formularStarttid)
-        });
-        markeraIncheckadIdag(profil);
-        visaLyckad(namn);
-      }
+skickaMedKvittens(
+  {
+    atgard: "registrera",
+    namn: namn,
+    kontakt: kontakt,
+    enhetsId: profil.enhetsId,
+    nfcToken: NFC_TOKEN,
+    gdprBekraftad: "1",
+    webbplats: webbplats,
+    starttid: String(formularStarttid)
+  },
+  function () {
+    try {
+      sparaProfil(profil);
+      markeraIncheckadIdag(profil);
+      visaLyckad(namn);
+    } catch (fel) {
+      alert("Mobilen kunde inte spara profilen.");
+    }
+  },
+  function (fel) {
+    knapp.disabled = false;
+    knapp.textContent = "Checka in";
+    alert(fel);
+  }
+);
 
       window.addEventListener("load", function() {
         const parametrar = new URLSearchParams(window.location.search);
