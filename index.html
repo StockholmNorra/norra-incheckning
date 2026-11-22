@@ -339,8 +339,9 @@ skickaMedKvittens(
     alert(fel);
   }
 );
-
-      window.addEventListener("load", function() {
+}
+ 
+window.addEventListener("load", function() {
         const parametrar = new URLSearchParams(window.location.search);
         if (parametrar.get("reset") === "1") {
           localStorage.removeItem(PROFIL_NYCKEL);
