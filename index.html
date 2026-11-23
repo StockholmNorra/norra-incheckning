@@ -340,7 +340,70 @@ skickaMedKvittens(
   }
 );
 }
- 
+ let norraMoten = [];
+
+function hamtaNorraMoten(done) {
+  const callback = "norraMoten_" + Date.now();
+
+  window[callback] = function (svar) {
+    delete window[callback];
+
+    const gammal = document.getElementById(callback);
+    if (gammal) gammal.remove();
+
+    done(Array.isArray(svar) ? svar : []);
+  };
+
+  const script = document.createElement("script");
+  script.id = callback;
+  script.src =
+    BACKEND_URL +
+    "?api=aktivaMoten&callback=" +
+    callback +
+    "&_=" + Date.now();
+
+  script.onerror = function () {
+    delete window[callback];
+    script.remove();
+    done([]);
+  };
+
+  document.body.appendChild(script);
+}
+
+function visaNorraMoten(continuation) {
+  document.getElementById("app").innerHTML =
+    "<h1>Välj möte</h1>" +
+    "<p>Markera det eller de möten du vill checka in på.</p>" +
+    '<div id="norraMoteLista"></div>' +
+    '<button id="norraMoteKnapp" type="button">Checka in</button>';
+
+  document.getElementById("norraMoteLista").innerHTML =
+    norraMoten.map(function (mote) {
+      return (
+        '<label style="display:block;margin:10px 0">' +
+        '<input type="checkbox" class="norra-mote-val" value="' +
+        mote.id + '">' +
+        " " + mote.namn + " (" + mote.tid + ")" +
+        "</label>"
+      );
+    }).join("");
+
+  document.getElementById("norraMoteKnapp").onclick = function () {
+    const valda = Array.from(
+      document.querySelectorAll(".norra-mote-val:checked")
+    ).map(function (ruta) {
+      return ruta.value;
+    });
+
+    if (!valda.length) {
+      alert("Välj minst ett möte.");
+      return;
+    }
+
+    continuation(valda);
+  };
+}
 window.addEventListener("load", function() {
         const parametrar = new URLSearchParams(window.location.search);
         if (parametrar.get("reset") === "1") {
@@ -366,42 +429,29 @@ window.addEventListener("load", function() {
           visaFormular(); return;
         }
         if (!navigator.onLine) { visaFormular(); return; }
-       let nyttTillfalle = "0";
+       function doGet(e) {
+  const parameter = e && e.parameter ? e.parameter : {};
 
-if (profil.senastIncheckadDatum === dagensDatum()) {
-  const godkantNyttTillfalle = confirm(
-    "Du är redan incheckad idag. Är detta ett nytt möte eller tillfälle?\n\n" +
-    "Tryck OK för att checka in igen eller Avbryt för att inte registrera en ny incheckning."
-  );
+  if (parameter.api === "aktivaMoten") {
+    const data = hamtaAktivaMoten_();
+    const callback = String(parameter.callback || "")
+      .replace(/[^\w$]/g, "");
 
-  if (!godkantNyttTillfalle) {
-    document.getElementById("app").innerHTML =
-      "<h1>Ingen ny incheckning</h1>" +
-      "<p>Du är redan incheckad idag. Ingen ny incheckning registrerades.</p>";
-    return;
+    const json = JSON.stringify(data);
+
+    return ContentService
+      .createTextOutput(
+        callback ? callback + "(" + json + ");" : json
+      )
+      .setMimeType(
+        callback
+          ? ContentService.MimeType.JAVASCRIPT
+          : ContentService.MimeType.JSON
+      );
   }
 
-  nyttTillfalle = "1";
+  // resten av din befintliga doGet ska vara kvar här
 }
-        skickaMedKvittens(
-  {
-    atgard: "checka_in",
-    namn: profil.namn,
-    enhetsId: profil.enhetsId,
-    nyttTillfalle: nyttTillfalle,
-    nfcToken: NFC_TOKEN
-  },
-  function () {
-    markeraIncheckadIdag(profil);
-    visaLyckad(profil.namn);
-  },
-  function (fel) {
-    document.getElementById("app").innerHTML =
-      "<h1>Incheckningen kunde inte sparas</h1>" +
-      "<p>" + String(fel) + "</p>";
-  }
-);
-      });
     </script>
   </body>
 </html>
