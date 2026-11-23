@@ -444,9 +444,7 @@ const script = document.createElement("script");
 script.id = callback;
 script.src =
   BACKEND_URL +
-  "?api=aktivaMoten&nfc=" +
-  encodeURIComponent(NFC_TOKEN) +
-  "&callback=" +
+  "?api=aktivaMoten&callback=" +
   encodeURIComponent(callback) +
   "&_=" +
   Date.now();
