@@ -340,7 +340,72 @@ skickaMedKvittens(
   }
 );
 }
- 
+ let norraMoten = [];
+
+function hamtaNorraMoten(done) {
+  const callback = "norraMoten_" + Date.now();
+
+  window[callback] = function (svar) {
+    delete window[callback];
+
+    const gammal = document.getElementById(callback);
+    if (gammal) gammal.remove();
+
+    done(Array.isArray(svar) ? svar : []);
+  };
+
+  const script = document.createElement("script");
+  script.id = callback;
+  script.src =
+    BACKEND_URL +
+    "?api=aktivaMoten&callback=" +
+    encodeURIComponent(callback) +
+    "&_=" + Date.now();
+
+  script.onerror = function () {
+    delete window[callback];
+    script.remove();
+
+    document.getElementById("app").innerHTML =
+      "<h1>Möten kunde inte hämtas</h1>" +
+      "<p>Kontrollera internetanslutningen och försök igen.</p>";
+  };
+
+  document.body.appendChild(script);
+}
+function visaNorraMoten(continuation) {
+  document.getElementById("app").innerHTML =
+    "<h1>Välj möte</h1>" +
+    "<p>Markera det eller de möten du vill checka in på.</p>" +
+    '<div id="norraMoteLista"></div>' +
+    '<button id="norraMoteKnapp" type="button">Checka in</button>';
+
+  document.getElementById("norraMoteLista").innerHTML =
+    norraMoten.map(function (mote) {
+      return (
+        '<label style="display:block;margin:10px 0">' +
+        '<input type="checkbox" class="norra-mote-val" value="' +
+        mote.id + '">' +
+        " " + mote.namn + " (" + mote.tid + ")" +
+        "</label>"
+      );
+    }).join("");
+
+  document.getElementById("norraMoteKnapp").onclick = function () {
+    const valda = Array.from(
+      document.querySelectorAll(".norra-mote-val:checked")
+    ).map(function (ruta) {
+      return ruta.value;
+    });
+
+    if (!valda.length) {
+      alert("Välj minst ett möte.");
+      return;
+    }
+
+    continuation(valda);
+  };
+}
 window.addEventListener("load", function() {
         const parametrar = new URLSearchParams(window.location.search);
         if (parametrar.get("reset") === "1") {
@@ -366,99 +431,29 @@ window.addEventListener("load", function() {
           visaFormular(); return;
         }
         if (!navigator.onLine) { visaFormular(); return; }
-       const callback = "norraAktiva_" + Date.now();
+       function doGet(e) {
+  const parameter = e && e.parameter ? e.parameter : {};
 
-window[callback] = function (moten) {
-  delete window[callback];
+  if (parameter.api === "aktivaMoten") {
+    const data = hamtaAktivaMoten_();
+    const callback = String(parameter.callback || "")
+      .replace(/[^\w$]/g, "");
 
-  const scriptGammal = document.getElementById(callback);
-  if (scriptGammal) scriptGammal.remove();
+    const json = JSON.stringify(data);
 
-  moten = Array.isArray(moten) ? moten : [];
-
-  if (!moten.length) {
-    document.getElementById("app").innerHTML =
-      "<h1>Incheckning stängd</h1>" +
-      "<p>Det finns inget öppet möte just nu.</p>";
-    return;
+    return ContentService
+      .createTextOutput(
+        callback ? callback + "(" + json + ");" : json
+      )
+      .setMimeType(
+        callback
+          ? ContentService.MimeType.JAVASCRIPT
+          : ContentService.MimeType.JSON
+      );
   }
 
-  const app = document.getElementById("app");
-
-  app.innerHTML =
-    "<h1>Välj möte</h1>" +
-    "<p>Markera det eller de möten du vill checka in på.</p>" +
-    '<div id="norraMoten"></div>' +
-    '<button id="checkaInNorra" type="button">Checka in</button>';
-
-  const lista = document.getElementById("norraMoten");
-
-  moten.forEach(function (mote) {
-    const etikett = document.createElement("label");
-    etikett.style.display = "block";
-    etikett.style.margin = "12px 0";
-
-    const ruta = document.createElement("input");
-    ruta.type = "checkbox";
-    ruta.value = mote.id;
-    ruta.className = "norra-mote";
-
-    etikett.appendChild(ruta);
-    etikett.appendChild(
-      document.createTextNode(
-        " " + mote.namn + " (" + mote.tid + ")"
-      )
-    );
-
-    lista.appendChild(etikett);
-  });
-
-  document.getElementById("checkaInNorra").onclick = function () {
-    const valda = Array.from(
-      document.querySelectorAll(".norra-mote:checked")
-    ).map(function (ruta) {
-      return ruta.value;
-    });
-
-    if (!valda.length) {
-      alert("Välj minst ett möte.");
-      return;
-    }
-
-    skickaIbakgrunden({
-      atgard: "checka_in",
-      namn: profil.namn,
-      enhetsId: profil.enhetsId,
-      moteIds: JSON.stringify(valda),
-      nfcToken: NFC_TOKEN
-    });
-
-    markeraIncheckadIdag(profil);
-    visaLyckad(profil.namn);
-  };
-
-  script.remove();
-};
-
-const script = document.createElement("script");
-script.id = callback;
-script.src =
-  BACKEND_URL +
-  "?api=aktivaMoten&callback=" +
-  encodeURIComponent(callback) +
-  "&_=" +
-  Date.now();
-
-script.onerror = function () {
-  delete window[callback];
-  script.remove();
-
-  document.getElementById("app").innerHTML =
-    "<h1>Möten kunde inte hämtas</h1>" +
-    "<p>Försök igen.</p>";
-};
-
-document.body.appendChild(script);
+  // resten av din befintliga doGet ska vara kvar här
+}
     </script>
   </body>
 </html>
