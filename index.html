@@ -372,9 +372,24 @@ window.addEventListener("load", function() {
           if (!godkantNyttTillfalle) { visaLyckad(profil.namn); return; }
           nyttTillfalle = "1";
         }
-        visaLyckad(profil.namn);
-        skickaIbakgrunden({ atgard: "checka_in", namn: profil.namn, enhetsId: profil.enhetsId, nyttTillfalle: nyttTillfalle, nfcToken: NFC_TOKEN });
-        markeraIncheckadIdag(profil);
+        skickaMedKvittens(
+  {
+    atgard: "checka_in",
+    namn: profil.namn,
+    enhetsId: profil.enhetsId,
+    nyttTillfalle: nyttTillfalle,
+    nfcToken: NFC_TOKEN
+  },
+  function () {
+    markeraIncheckadIdag(profil);
+    visaLyckad(profil.namn);
+  },
+  function (fel) {
+    document.getElementById("app").innerHTML =
+      "<h1>Incheckningen kunde inte sparas</h1>" +
+      "<p>" + String(fel) + "</p>";
+  }
+);
       });
     </script>
   </body>
