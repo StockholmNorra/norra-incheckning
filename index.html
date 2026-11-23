@@ -137,6 +137,25 @@
         sparaProfil(profil);
       }
 
+      function hamtaLokaltValdaMoten(profil) {
+        const datum = dagensDatum();
+        const sparat = profil.incheckadeMoten || {};
+        return Array.isArray(sparat[datum]) ? sparat[datum] : [];
+      }
+
+      function sparaLokaltValdaMoten(profil, moteIds) {
+        const datum = dagensDatum();
+        const sparat = profil.incheckadeMoten || {};
+        const gamla = Array.isArray(sparat[datum]) ? sparat[datum] : [];
+        sparat[datum] = gamla.filter(function (id, index, alla) {
+          return alla.indexOf(id) === index;
+        }).concat(moteIds).filter(function (id, index, alla) {
+          return alla.indexOf(id) === index;
+        });
+        profil.incheckadeMoten = sparat;
+        sparaProfil(profil);
+      }
+
       function skickaIbakgrunden(falt) {
         const formular = document.createElement("form");
         formular.method = "POST";
@@ -388,11 +407,22 @@ window.addEventListener("load", function () {
     }
 
     const app = document.getElementById("app");
+    const lokaltValda = hamtaLokaltValdaMoten(profil);
+    const harRedanValda = moten.some(function (mote) {
+      return lokaltValda.indexOf(mote.id) !== -1;
+    });
+
     app.innerHTML =
-      "<h1>Välj möte</h1>" +
-      "<p>Markera det eller de möten du vill checka in på.</p>" +
+      (harRedanValda
+        ? "<h1>Du är redan incheckad</h1>" +
+          "<p>Välj Fortsätt utan ändring eller ändra dina möten.</p>"
+        : "<h1>Välj möte</h1>" +
+          "<p>Markera det eller de möten du vill checka in på.</p>") +
       '<div id="norraMoten"></div>' +
-      '<button id="checkaInNorra" type="button">Checka in</button>';
+      (harRedanValda
+        ? '<button id="fortsattNorra" type="button">Fortsätt utan ändring</button>' +
+          '<button id="andraNorra" type="button" style="margin-top:10px">Ändra mina möten</button>'
+        : '<button id="checkaInNorra" type="button">Checka in</button>');
 
     const lista = document.getElementById("norraMoten");
 
@@ -405,6 +435,7 @@ window.addEventListener("load", function () {
       ruta.type = "checkbox";
       ruta.value = mote.id;
       ruta.className = "norra-mote";
+      ruta.checked = lokaltValda.indexOf(mote.id) !== -1;
 
       etikett.appendChild(ruta);
       etikett.appendChild(document.createTextNode(
@@ -413,7 +444,21 @@ window.addEventListener("load", function () {
       lista.appendChild(etikett);
     });
 
-    document.getElementById("checkaInNorra").onclick = function () {
+  function visaCheckinKnappar() {
+    const gammal = document.getElementById("fortsattNorra");
+    const andra = document.getElementById("andraNorra");
+    if (gammal) gammal.remove();
+    if (andra) andra.remove();
+
+    const knapp = document.createElement("button");
+    knapp.id = "checkaInNorra";
+    knapp.type = "button";
+    knapp.textContent = "Spara ändrad incheckning";
+    document.getElementById("norraMoten").after(knapp);
+    knapp.onclick = checkaInValdaMoten;
+  }
+
+  function checkaInValdaMoten() {
       const valda = Array.from(
         document.querySelectorAll(".norra-mote:checked")
       ).map(function (ruta) { return ruta.value; });
@@ -431,9 +476,21 @@ window.addEventListener("load", function () {
         nfcToken: NFC_TOKEN
       });
 
+    sparaLokaltValdaMoten(profil, valda);
       markeraIncheckadIdag(profil);
       visaLyckad(profil.namn);
-    };
+  }
+
+  const checkaIn = document.getElementById("checkaInNorra");
+  if (checkaIn) checkaIn.onclick = checkaInValdaMoten;
+
+  const fortsatt = document.getElementById("fortsattNorra");
+  if (fortsatt) fortsatt.onclick = function () {
+    visaLyckad(profil.namn);
+  };
+
+  const andra = document.getElementById("andraNorra");
+  if (andra) andra.onclick = visaCheckinKnappar;
   };
 
   script.src =
