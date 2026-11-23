@@ -366,14 +366,22 @@ window.addEventListener("load", function() {
           visaFormular(); return;
         }
         if (!navigator.onLine) { visaFormular(); return; }
-        let nyttTillfalle = "0";
-        if (profil.senastIncheckadDatum === dagensDatum()) {
-          const godkantNyttTillfalle = confirm("Du är redan incheckad idag. Är detta ett nytt möte eller tillfälle?\n\nTryck OK för att checka in igen eller Avbryt för att inte registrera en ny incheckning.");
-          if (!godkantNyttTillfalle) {
-  document.getElementById("app").innerHTML =
-    "<h1>Ingen ny incheckning</h1>" +
-    "<p>Du är redan incheckad idag. Ingen ny incheckning registrerades.</p>";
-  return;
+       let nyttTillfalle = "0";
+
+if (profil.senastIncheckadDatum === dagensDatum()) {
+  const godkantNyttTillfalle = confirm(
+    "Du är redan incheckad idag. Är detta ett nytt möte eller tillfälle?\n\n" +
+    "Tryck OK för att checka in igen eller Avbryt för att inte registrera en ny incheckning."
+  );
+
+  if (!godkantNyttTillfalle) {
+    document.getElementById("app").innerHTML =
+      "<h1>Ingen ny incheckning</h1>" +
+      "<p>Du är redan incheckad idag. Ingen ny incheckning registrerades.</p>";
+    return;
+  }
+
+  nyttTillfalle = "1";
 }
         skickaMedKvittens(
   {
