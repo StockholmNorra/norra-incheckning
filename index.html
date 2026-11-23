@@ -340,111 +340,117 @@ skickaMedKvittens(
   }
 );
 }
- let norraMoten = [];
+ 
+window.addEventListener("load", function () {
+  const parametrar = new URLSearchParams(window.location.search);
 
-function hamtaNorraMoten(done) {
-  const callback = "norraMoten_" + Date.now();
+  if (parametrar.get("reset") === "1") {
+    localStorage.removeItem(PROFIL_NYCKEL);
+    history.replaceState({}, "", window.location.pathname);
+  }
 
-  window[callback] = function (svar) {
-    delete window[callback];
+  if (parametrar.get("nfc") !== NFC_TOKEN) {
+    document.getElementById("app").innerHTML =
+      "<h1>Blippa NFC-taggen</h1>" +
+      "<p>Incheckning kan endast startas via NFC-taggen vid entrén.</p>";
+    return;
+  }
 
-    const gammal = document.getElementById(callback);
-    if (gammal) gammal.remove();
+  const profil = hamtaProfil();
 
-    done(Array.isArray(svar) ? svar : []);
-  };
+  if (!profil) {
+    visaFormular();
+    return;
+  }
 
+  if (!navigator.onLine) {
+    document.getElementById("app").innerHTML =
+      "<h1>Ingen internetanslutning</h1>" +
+      "<p>Anslut mobilen till internet och försök igen.</p>";
+    return;
+  }
+
+  const callback = "norraAktiva_" + Date.now();
   const script = document.createElement("script");
   script.id = callback;
+
+  window[callback] = function (moten) {
+    delete window[callback];
+    script.remove();
+
+    moten = Array.isArray(moten) ? moten : [];
+
+    if (!moten.length) {
+      document.getElementById("app").innerHTML =
+        "<h1>Incheckning stängd</h1>" +
+        "<p>Det finns inget öppet möte just nu.</p>";
+      return;
+    }
+
+    const app = document.getElementById("app");
+    app.innerHTML =
+      "<h1>Välj möte</h1>" +
+      "<p>Markera det eller de möten du vill checka in på.</p>" +
+      '<div id="norraMoten"></div>' +
+      '<button id="checkaInNorra" type="button">Checka in</button>';
+
+    const lista = document.getElementById("norraMoten");
+
+    moten.forEach(function (mote) {
+      const etikett = document.createElement("label");
+      etikett.style.display = "block";
+      etikett.style.margin = "12px 0";
+
+      const ruta = document.createElement("input");
+      ruta.type = "checkbox";
+      ruta.value = mote.id;
+      ruta.className = "norra-mote";
+
+      etikett.appendChild(ruta);
+      etikett.appendChild(document.createTextNode(
+        " " + mote.namn + " (" + mote.tid + ")"
+      ));
+      lista.appendChild(etikett);
+    });
+
+    document.getElementById("checkaInNorra").onclick = function () {
+      const valda = Array.from(
+        document.querySelectorAll(".norra-mote:checked")
+      ).map(function (ruta) { return ruta.value; });
+
+      if (!valda.length) {
+        alert("Välj minst ett möte.");
+        return;
+      }
+
+      skickaIbakgrunden({
+        atgard: "checka_in",
+        namn: profil.namn,
+        enhetsId: profil.enhetsId,
+        moteIds: JSON.stringify(valda),
+        nfcToken: NFC_TOKEN
+      });
+
+      markeraIncheckadIdag(profil);
+      visaLyckad(profil.namn);
+    };
+  };
+
   script.src =
     BACKEND_URL +
-    "?api=aktivaMoten&callback=" +
-    encodeURIComponent(callback) +
+    "?api=aktivaMoten&nfc=" + encodeURIComponent(NFC_TOKEN) +
+    "&callback=" + encodeURIComponent(callback) +
     "&_=" + Date.now();
 
   script.onerror = function () {
     delete window[callback];
     script.remove();
-
     document.getElementById("app").innerHTML =
-      "<h1>Möten kunde inte hämtas</h1>" +
-      "<p>Kontrollera internetanslutningen och försök igen.</p>";
+      "<h1>Möten kunde inte hämtas</h1><p>Försök igen.</p>";
   };
 
   document.body.appendChild(script);
-}
-function visaNorraMoten(continuation) {
-  document.getElementById("app").innerHTML =
-    "<h1>Välj möte</h1>" +
-    "<p>Markera det eller de möten du vill checka in på.</p>" +
-    '<div id="norraMoteLista"></div>' +
-    '<button id="norraMoteKnapp" type="button">Checka in</button>';
-
-  document.getElementById("norraMoteLista").innerHTML =
-    norraMoten.map(function (mote) {
-      return (
-        '<label style="display:block;margin:10px 0">' +
-        '<input type="checkbox" class="norra-mote-val" value="' +
-        mote.id + '">' +
-        " " + mote.namn + " (" + mote.tid + ")" +
-        "</label>"
-      );
-    }).join("");
-
-  document.getElementById("norraMoteKnapp").onclick = function () {
-    const valda = Array.from(
-      document.querySelectorAll(".norra-mote-val:checked")
-    ).map(function (ruta) {
-      return ruta.value;
-    });
-
-    if (!valda.length) {
-      alert("Välj minst ett möte.");
-      return;
-    }
-
-    continuation(valda);
-  };
-}
-window.addEventListener("load", function() {
-        const parametrar = new URLSearchParams(window.location.search);
-        if (parametrar.get("reset") === "1") {
-          localStorage.removeItem(PROFIL_NYCKEL);
-          history.replaceState({}, "", window.location.pathname);
-        }
-        if (parametrar.get("nfc") !== NFC_TOKEN) {
-          document.getElementById("app").innerHTML = '<h1>Blippa NFC-taggen</h1><p>Incheckning kan endast startas via NFC-taggen vid entrén.</p>';
-          return;
-        }
-        const profil = hamtaProfil();
-        if (!profil) {
-          const gammaltNamn = hamtaGammaltNamn();
-          if (gammaltNamn) {
-            const nyttProfil = { namn: gammaltNamn, enhetsId: skapaEnhetsId() };
-            document.getElementById("app").innerHTML = '<h1>Återställer din registrering…</h1><p>Vänta ett ögonblick.</p>';
-            skickaIbakgrunden({ atgard: "migrera", namn: nyttProfil.namn, enhetsId: nyttProfil.enhetsId, nfcToken: NFC_TOKEN });
-            sparaProfil(nyttProfil);
-            markeraIncheckadIdag(nyttProfil);
-            setTimeout(function() { visaLyckad(nyttProfil.namn); }, 500);
-            return;
-          }
-          visaFormular(); return;
-        }
-        if (!navigator.onLine) {
-  visaFormular();
-  return;
-}
-
-skickaIbakgrunden({
-  atgard: "checka_in",
-  namn: profil.namn,
-  enhetsId: profil.enhetsId,
-  nfcToken: NFC_TOKEN
 });
-
-markeraIncheckadIdag(profil);
-visaLyckad(profil.namn);
-  });
     </script>
   </body>
 </html>
