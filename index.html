@@ -359,18 +359,20 @@ function hamtaNorraMoten(done) {
   script.src =
     BACKEND_URL +
     "?api=aktivaMoten&callback=" +
-    callback +
+    encodeURIComponent(callback) +
     "&_=" + Date.now();
 
   script.onerror = function () {
     delete window[callback];
     script.remove();
-    done([]);
+
+    document.getElementById("app").innerHTML =
+      "<h1>Möten kunde inte hämtas</h1>" +
+      "<p>Kontrollera internetanslutningen och försök igen.</p>";
   };
 
   document.body.appendChild(script);
 }
-
 function visaNorraMoten(continuation) {
   document.getElementById("app").innerHTML =
     "<h1>Välj möte</h1>" +
