@@ -366,42 +366,99 @@ window.addEventListener("load", function() {
           visaFormular(); return;
         }
         if (!navigator.onLine) { visaFormular(); return; }
-       let nyttTillfalle = "0";
+       const callback = "norraAktiva_" + Date.now();
 
-if (profil.senastIncheckadDatum === dagensDatum()) {
-  const godkantNyttTillfalle = confirm(
-    "Du är redan incheckad idag. Är detta ett nytt möte eller tillfälle?\n\n" +
-    "Tryck OK för att checka in igen eller Avbryt för att inte registrera en ny incheckning."
-  );
+window[callback] = function (moten) {
+  delete window[callback];
 
-  if (!godkantNyttTillfalle) {
+  const scriptGammal = document.getElementById(callback);
+  if (scriptGammal) scriptGammal.remove();
+
+  moten = Array.isArray(moten) ? moten : [];
+
+  if (!moten.length) {
     document.getElementById("app").innerHTML =
-      "<h1>Ingen ny incheckning</h1>" +
-      "<p>Du är redan incheckad idag. Ingen ny incheckning registrerades.</p>";
+      "<h1>Incheckning stängd</h1>" +
+      "<p>Det finns inget öppet möte just nu.</p>";
     return;
   }
 
-  nyttTillfalle = "1";
-}
-        skickaMedKvittens(
-  {
-    atgard: "checka_in",
-    namn: profil.namn,
-    enhetsId: profil.enhetsId,
-    nyttTillfalle: nyttTillfalle,
-    nfcToken: NFC_TOKEN
-  },
-  function () {
+  const app = document.getElementById("app");
+
+  app.innerHTML =
+    "<h1>Välj möte</h1>" +
+    "<p>Markera det eller de möten du vill checka in på.</p>" +
+    '<div id="norraMoten"></div>' +
+    '<button id="checkaInNorra" type="button">Checka in</button>';
+
+  const lista = document.getElementById("norraMoten");
+
+  moten.forEach(function (mote) {
+    const etikett = document.createElement("label");
+    etikett.style.display = "block";
+    etikett.style.margin = "12px 0";
+
+    const ruta = document.createElement("input");
+    ruta.type = "checkbox";
+    ruta.value = mote.id;
+    ruta.className = "norra-mote";
+
+    etikett.appendChild(ruta);
+    etikett.appendChild(
+      document.createTextNode(
+        " " + mote.namn + " (" + mote.tid + ")"
+      )
+    );
+
+    lista.appendChild(etikett);
+  });
+
+  document.getElementById("checkaInNorra").onclick = function () {
+    const valda = Array.from(
+      document.querySelectorAll(".norra-mote:checked")
+    ).map(function (ruta) {
+      return ruta.value;
+    });
+
+    if (!valda.length) {
+      alert("Välj minst ett möte.");
+      return;
+    }
+
+    skickaIbakgrunden({
+      atgard: "checka_in",
+      namn: profil.namn,
+      enhetsId: profil.enhetsId,
+      moteIds: JSON.stringify(valda),
+      nfcToken: NFC_TOKEN
+    });
+
     markeraIncheckadIdag(profil);
     visaLyckad(profil.namn);
-  },
-  function (fel) {
-    document.getElementById("app").innerHTML =
-      "<h1>Incheckningen kunde inte sparas</h1>" +
-      "<p>" + String(fel) + "</p>";
-  }
-);
-      });
+  };
+
+  script.remove();
+};
+
+const script = document.createElement("script");
+script.id = callback;
+script.src =
+  BACKEND_URL +
+  "?api=aktivaMoten&callback=" +
+  encodeURIComponent(callback) +
+  "&_=" +
+  Date.now();
+
+script.onerror = function () {
+  delete window[callback];
+  script.remove();
+
+  document.getElementById("app").innerHTML =
+    "<h1>Möten kunde inte hämtas</h1>" +
+    "<p>Försök igen.</p>";
+};
+
+document.body.appendChild(script);
     </script>
   </body>
 </html>
