@@ -430,30 +430,21 @@ window.addEventListener("load", function() {
           }
           visaFormular(); return;
         }
-        if (!navigator.onLine) { visaFormular(); return; }
-       function doGet(e) {
-  const parameter = e && e.parameter ? e.parameter : {};
-
-  if (parameter.api === "aktivaMoten") {
-    const data = hamtaAktivaMoten_();
-    const callback = String(parameter.callback || "")
-      .replace(/[^\w$]/g, "");
-
-    const json = JSON.stringify(data);
-
-    return ContentService
-      .createTextOutput(
-        callback ? callback + "(" + json + ");" : json
-      )
-      .setMimeType(
-        callback
-          ? ContentService.MimeType.JAVASCRIPT
-          : ContentService.MimeType.JSON
-      );
-  }
-
-  // resten av din befintliga doGet ska vara kvar här
+        if (!navigator.onLine) {
+  visaFormular();
+  return;
 }
+
+skickaIbakgrunden({
+  atgard: "checka_in",
+  namn: profil.namn,
+  enhetsId: profil.enhetsId,
+  nfcToken: NFC_TOKEN
+});
+
+markeraIncheckadIdag(profil);
+visaLyckad(profil.namn);
+  });
     </script>
   </body>
 </html>
